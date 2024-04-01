@@ -53,9 +53,17 @@
 (require 'websocket)
 (require 'ess-inf)
 
+
+;; Variables that you might wish to change:
+
+(defvar essgd-buffer "*essgd*"
+  "Name of the buffer to display R plots in.")
+
 (defvar essgd-debug nil
   "Non-nil means print debugging information.")
 
+
+;; Internal variables and not for the user:
 (defvar essgd-cur-plot nil
   "Index (1-based) of the current plot being displayed.")
 
@@ -73,9 +81,6 @@
 
 (defvar essgd-latest nil
   "Temporary file name used to store the SVG downloaded from plot server.")
-
-(defvar essgd-buffer "*essgd*"
-  "Name of the buffer to display R plots in.")
 
 (defun essgd-start-websocket ()
   "Start the websocket to monitor httpgd from elisp.
