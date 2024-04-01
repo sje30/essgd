@@ -1,13 +1,55 @@
-;;; essgd.el --- show R plots from ESS within Emacs buffer.  -*- lexical-binding: t; -*-
+;;; essgd.el --- Show R plots from ESS within a buffer  -*- lexical-binding: t; -*-
 ;; Copyright (C) 2024 Stephen Eglen
 ;; Author: Stephen Eglen <sje30@cam.ac.uk>
 ;; Created: 2024-04-01
-;; Package-Requires: (websocket ess)
+;; Package-Requires: ((websocket "1.15") (ess "24.1.1") (emacs "29.1"))
+;; URL: https://github.com/sje30/essgd
+;; Version: 0.1
 
+;;; License:
+;;
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see
+;; <http://www.gnu.org/licenses/>
+
+;;; Commentary:
+
+;; This uses the httpgd package in R to display R plots within an
+;; Emacs buffer.
+;;
+;; Prerequisites
+;; 
+;; R: You will need to install httpgd from CRAN.  Emacs: This code has
+;; been tested on Emacs 29.2.  It requires a recent version of two
+;; packages: ESS and websocket.  Both of these packages are available
+;; from MELPA.
+;;
+;; Using the code
+;;
+;; Load this package and start an R session.  Within an *R* buffer,
+;; or an .R buffer that is linked to a *R* buffer, start the graphics
+;; device using M-x essgd-start.  Plots should then appear in the buffer.
+;; You can navigate through the plot history using p, n keys.  Press
+;; r to refresh the buffer if a plot doesn't appear correctly.  Press
+;; q to quit the buffer and close the R device.
+;; 
+;; Acknowledgements
+;;
+;; Thanks to Florian Rupprecht for help getting started with the httpgd()
+;; device.
 
 ;;; Code:
 
-;; To use this package you will need to install the websocket package.
 (require 'websocket)
 (require 'ess-inf)
 
@@ -32,6 +74,9 @@
 (defvar essgd-latest nil
   "Temporary file name used to store the SVG downloaded from plot server.")
 
+(defvar essgd-buffer "*essgd*"
+  "Name of the buffer to display R plots in.")
+
 (defun essgd-start-websocket ()
   "Start the websocket to monitor httpgd from elisp.
 This allows us to respond automatically to new plots."
@@ -42,7 +87,7 @@ This allows us to respond automatically to new plots."
 	 :on-close (lambda (_websocket) (message "sje websocket closed")))))
 
 (defun essgd-process-message (_websocket frame)
-  "Handle the message returing from the frame."
+  "Handle the message embedded in FRAME from websocket."
   (when essgd-debug (message "ws frame: %S" (websocket-frame-text frame)))
   (let* ((json-plist (json-parse-string (websocket-frame-text frame)
 					:false-object nil
@@ -50,7 +95,7 @@ This allows us to respond automatically to new plots."
 	 (possible-plot  (plist-get json-plist :hsize))
 	 (active (plist-get json-plist :active)))
     (when active
-      (with-current-buffer "*essgd*"
+      (with-current-buffer essgd-buffer
 	(unless (member possible-plot essgd-plot-nums)
 	  (setq-local essgd-plot-nums (essgd-get-plot-nums))
 	  (setq-local essgd-cur-plot possible-plot)
@@ -62,11 +107,11 @@ This allows us to respond automatically to new plots."
 ;; curl -s http://127.0.0.1:5900/plot?index=2&width=800&height=600 > /tmp/a.svg
 
 (defun essgd-start ()
-  "Start an *essgd* window to plot R output.
+  "Start an *essgd* buffer to plot R output.
 Must be called from a buffer that is either an *R* process, or attached to one.
 The initial size of the plot is half the current window."
   (interactive)
-  (let ((buf (get-buffer-create "*essgd*"))
+  (let ((buf (get-buffer-create essgd-buffer))
 	(r-proc ess-local-process-name))
     (set-buffer buf)
     (essgd-mode)
@@ -103,10 +148,9 @@ The initial size of the plot is half the current window."
 
 
 (defun essgd-get-plot-nums ()
-  "Return the number of plots on the server."
-  ;; TODO: check what happens if no plots served.
-  ;;
-  (with-current-buffer "*essgd*"
+  "Return a list of plot indexes (1-based) on the server.
+If there are no plots yet, nil is returned."
+  (with-current-buffer essgd-buffer
     (let (cmd text plist plots)
       (setq cmd (format  "curl -s '%s/plots?%s'" essgd-url essgd-token))
       (when essgd-debug (message cmd))
@@ -117,9 +161,9 @@ The initial size of the plot is half the current window."
 
 (defun essgd-show-plot-n (n)
   "Show plot N.
-Do nothing if n is zero."
+Do nothing if N is zero."
   (when (> n 0)
-    (let* ((edges (window-body-pixel-edges (get-buffer-window "*essgd*")))
+    (let* ((edges (window-body-pixel-edges (get-buffer-window essgd-buffer)))
 	   (left (nth 0 edges))
 	   (top (nth 1 edges))
 	   (right (nth 2 edges))
@@ -150,9 +194,10 @@ Do nothing if n is zero."
   "Refresh the latest plot."
   (interactive)
   (setq-local essgd-plot-nums (essgd-get-plot-nums))
-  (essgd-show-plot-n (with-current-buffer "*essgd*" essgd-cur-plot)))
+  (essgd-show-plot-n (with-current-buffer essgd-buffer
+		       essgd-cur-plot)))
 
-;; Emacs 29 seems to make it much "easier" for defining major modes.
+;; Emacs 29 has a new macro that makes defining keymaps very easy:
 (defvar-keymap essgd-mode-map
   "r" #'essgd-refresh
   "p" #'essgd-prev-plot
@@ -162,7 +207,7 @@ Do nothing if n is zero."
 (define-derived-mode essgd-mode
   fundamental-mode
   "Essgd"
-  "Major mode for displaying essgd plots" )
+  "Major mode for displaying essgd plots." )
 
 (defun essgd-prev-plot ()
   "Go to previous (earlier) plot in *R* session."
@@ -185,15 +230,15 @@ Do nothing if n is zero."
   (kill-buffer))
 
 (defun essgd-window-size-change (win)
-  "Function run when the window size changes.
+  "Function run when plot window changes size.
 WIN is currently used to get the buffer *essgd*."
-  (if essgd-debug
-      (message "essgd: resize window"))
+  (when essgd-debug (message "essgd: resize window"))
   (with-current-buffer (window-buffer win)
     (essgd-refresh)))
 
-(defvar essgd-start-text "httpgd::hgd(bg='transparent')
+(defvar essgd-start-text "httpgd::hgd(token=TRUE,bg='transparent')
 "
-  "R code required for *essgd* session.")
+  "R code required for starting a hgd() device in an *essgd* session.")
 
+(provide 'essgd)
 ;;; essgd.el ends here
