@@ -21,3 +21,6 @@ A prototype of this code, and example usage, is available at:
 Laurent Gatto has written a nice R package called 
 [plothistory](https://github.com/lgatto/plothistory).  This is not
 Emacs-specific, and in my testing, works well remotely via TRAMP.
+
+Thanks to Florian Rupprecht for his excellent
+[httpgd](https://github.com/nx10/httpgd) R package.
