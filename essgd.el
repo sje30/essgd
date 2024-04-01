@@ -2,7 +2,7 @@
 ;; Copyright (C) 2024 Stephen Eglen
 ;; Author: Stephen Eglen <sje30@cam.ac.uk>
 ;; Created: 2024-04-01
-;; Package-Requires: ((websocket "1.15") (ess "24.1.1") (emacs "29.1"))
+;; Package-Requires: ((websocket "1.15") (ess "24.01.1") (emacs "29.1"))
 ;; URL: https://github.com/sje30/essgd
 ;; Version: 0.1
 
