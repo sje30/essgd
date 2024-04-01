@@ -62,6 +62,9 @@
 (defvar essgd-debug nil
   "Non-nil means print debugging information.")
 
+(defvar essgd-start-text "httpgd::hgd(token=TRUE,bg='transparent')"
+  "R code required for starting a hgd() device in an *essgd* session.")
+
 
 ;; Internal variables and not for the user:
 (defvar essgd-cur-plot nil
@@ -81,6 +84,9 @@
 
 (defvar essgd-latest nil
   "Temporary file name used to store the SVG downloaded from plot server.")
+
+(defvar essgd-websocket nil
+  "Object pointing to the websocket (not needed?).")
 
 (defun essgd-start-websocket ()
   "Start the websocket to monitor httpgd from elisp.
@@ -117,7 +123,8 @@ Must be called from a buffer that is either an *R* process, or attached to one.
 The initial size of the plot is half the current window."
   (interactive)
   (let ((buf (get-buffer-create essgd-buffer))
-	(r-proc ess-local-process-name))
+	(r-proc ess-local-process-name)
+	start-output)
     (set-buffer buf)
     (essgd-mode)
 
@@ -241,9 +248,6 @@ WIN is currently used to get the buffer *essgd*."
   (with-current-buffer (window-buffer win)
     (essgd-refresh)))
 
-(defvar essgd-start-text "httpgd::hgd(token=TRUE,bg='transparent')
-"
-  "R code required for starting a hgd() device in an *essgd* session.")
 
 (provide 'essgd)
 ;;; essgd.el ends here
