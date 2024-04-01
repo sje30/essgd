@@ -1,5 +1,11 @@
 # essgd
 
+This is an add-on to Emacs Speak Statistics (ESS) to display R
+plots within a buffer.
+
+![Screenshot of essgd in Emacs](example-essgd.png)
+
+
 ## Installation
 
 
