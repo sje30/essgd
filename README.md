@@ -11,6 +11,7 @@ plots within a buffer.
 
 ## Installation
 
+The recommended way to install the package is via MELPA.
 
 If you use the straight package:
 ```
