@@ -88,6 +88,11 @@
 (defvar essgd-websocket nil
   "Object pointing to the websocket (not needed?).")
 
+(defmacro essgd-debug (&rest body)
+  "Evaluate BODY if variable `essgd-debug' is non-nil.
+This macro is essentially copied from the when macro."
+  (list 'if 'essgd-debug (cons 'progn body)))
+
 (defun essgd-start-websocket ()
   "Start the websocket to monitor httpgd from elisp.
 This allows us to respond automatically to new plots."
@@ -99,7 +104,7 @@ This allows us to respond automatically to new plots."
 
 (defun essgd-process-message (_websocket frame)
   "Handle the message embedded in FRAME from websocket."
-  (when essgd-debug (message "ws frame: %S" (websocket-frame-text frame)))
+  (essgd-debug (message "ws frame: %S" (websocket-frame-text frame)))
   (let* ((json-plist (json-parse-string (websocket-frame-text frame)
 					:false-object nil
 					:object-type 'plist))
@@ -110,7 +115,7 @@ This allows us to respond automatically to new plots."
 	(unless (member possible-plot essgd-plot-nums)
 	  (setq-local essgd-plot-nums (essgd-get-plot-nums))
 	  (setq-local essgd-cur-plot possible-plot)
-	  (when essgd-debug  (message "cur plot is %d" essgd-cur-plot))
+	  (essgd-debug  (message "cur plot is %d" essgd-cur-plot))
 	  (essgd-show-plot-n  possible-plot))))))
 
 ;; API:
@@ -165,7 +170,7 @@ If there are no plots yet, nil is returned."
   (with-current-buffer essgd-buffer
     (let (cmd text plist plots)
       (setq cmd (format  "curl -s '%s/plots?%s'" essgd-url essgd-token))
-      (when essgd-debug (message cmd))
+      (essgd-debug (message cmd))
       (setq text (shell-command-to-string cmd))
       (setq plist (json-parse-string text :object-type 'plist))
       (setq plots (plist-get plist :plots))
@@ -188,8 +193,9 @@ Do nothing if N is zero."
 	     "curl -s '%s/plot?index=%d&width=%d&height=%d&%s' > %s"
 	     essgd-url (1- n) wid ht essgd-token essgd-latest)))
     
-      (when essgd-debug (message cmd1))
-      (when essgd-debug  (message "inside size %d x %d " wid ht))
+      (essgd-debug
+       (message cmd1)
+       (message "inside size %d x %d " wid ht))
       (shell-command-to-string cmd1)
       (setq img (create-image essgd-latest))
       (remove-images 0 1)
@@ -244,7 +250,7 @@ Do nothing if N is zero."
 (defun essgd-window-size-change (win)
   "Function run when plot window changes size.
 WIN is currently used to get the buffer *essgd*."
-  (when essgd-debug (message "essgd: resize window"))
+  (essgd-debug (message "essgd: resize window"))
   (with-current-buffer (window-buffer win)
     (essgd-refresh)))
 
