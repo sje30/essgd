@@ -130,7 +130,7 @@ The initial size of the plot is half the current window."
 
     (if r-proc
 	(setq ess-local-process-name r-proc)
-      (error "No r process to communicate with"))
+      (user-error "No r process to communicate with"))
 
     ;; start the hgd() device here; output should contain the url
     ;; that is serving the figures.
