@@ -80,7 +80,7 @@
   "String containing the token to access plot server.")
 
 (defvar essgd-url nil
-  "String containing the UKL to access plot server.")
+  "String containing the URL to access plot server.")
 
 (defvar essgd-latest nil
   "Temporary file name used to store the SVG downloaded from plot server.")
