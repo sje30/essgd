@@ -33,6 +33,10 @@
 ;; been tested on Emacs 29.2.  It requires a recent version of two
 ;; packages: ESS and websocket.  Both of these packages are available
 ;; from MELPA.
+;; 
+;; Your version of Emacs must be compiled with native JSON support.  To check
+;; this, check that the feature JSON is included in the variable
+;; `system-configuration-features'.
 ;;
 ;; Using the code
 ;;
