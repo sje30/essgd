@@ -34,3 +34,13 @@ Emacs-specific, and in my testing, works well remotely via TRAMP.
 
 Thanks to Florian Rupprecht for his excellent
 [httpgd](https://github.com/nx10/httpgd) R package.
+
+
+## Notes to self
+
+To find the URL that would be executed by a given command, try the
+following:
+
+```
+httpgd::hgd_url("remove", index=1)
+```
