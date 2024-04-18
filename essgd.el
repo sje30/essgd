@@ -116,14 +116,22 @@ This allows us to respond automatically to new plots."
   (let* ((json-plist (json-parse-string (websocket-frame-text frame)
 					:false-object nil
 					:object-type 'plist))
-	 (possible-plot  (plist-get json-plist :hsize))
-	 (active (plist-get json-plist :active)))
-    (when active
+	 (possible-plot (plist-get json-plist :hsize))
+	 (active (plist-get json-plist :active))
+	 (upid (plist-get json-plist :upid)))
+    (when (and active (> possible-plot 0))
       (with-current-buffer essgd-buffer
-	(setq-local essgd-plot-nums (essgd-get-plot-nums))
-	(setq-local essgd-cur-plot possible-plot)
-	(essgd-debug (message "cur plot is %d" essgd-cur-plot))
-	(essgd-show-plot-n possible-plot)))))
+	(unless (equal essgd-upid upid)
+	  (setq essgd-upid upid)
+	  (setq essgd-plot-nums (essgd-get-plot-nums))
+	  (essgd-debug (message "xxx cur plot %d poss plot %d nplots %d"
+				(or essgd-cur-plot 0)
+				possible-plot (length essgd-plot-nums)))
+	  (if essgd-deleting
+	      (progn
+		(essgd-show-plot-n essgd-cur-plot)
+		(setq essgd-deleting nil))
+	    (essgd-show-plot-n possible-plot)))))))
 
 ;; API:
 ;; https://cran.r-project.org/web/packages/httpgd/vignettes/c01_httpgd-api.html
@@ -148,19 +156,21 @@ The initial size of the plot is half the current window."
     ;; that is serving the figures.
     (setq start-output (ess-string-command essgd-start-text))
 
+    ;; if minibuffer changes size, then we might get a dynamic resize!
+    (setq-local resize-mini-windows nil)
+    
     (string-match "\\(http://[0-9.:]+\\)/live\\?token=\\(.+\\)" start-output)
     ;; TODO - check case when token is missing.
     ;; TODO - error check if URL ccannot be found.
-    (setq-local essgd-url (match-string 1 start-output))
-    (setq-local essgd-token (match-string 2 start-output))
+    (setq essgd-url (match-string 1 start-output))
+    (setq essgd-token (match-string 2 start-output))
     (if (> (length essgd-token) 0)
 	(setq essgd-token (format "token=%s" essgd-token)))
-    (setq-local essgd-plot-nums (essgd-get-plot-nums))
-    (setq-local essgd-cur-plot
-		(length essgd-plot-nums))
-    (setq-local essgd-latest (make-temp-file "essgd" nil ".svg"))
-    ;; (setq-local essgd-latest "/tmp/me.svg")
-
+    (setq essgd-plot-nums (essgd-get-plot-nums))
+    (setq essgd-cur-plot
+	  (length essgd-plot-nums))
+    (setq essgd-latest (make-temp-file "essgd" nil ".svg"))
+    
     (display-buffer buf)
     (setq-local window-size-change-functions '(essgd-window-size-change))
     (when (> essgd-cur-plot 0)
@@ -218,7 +228,7 @@ Do nothing if N is zero."
 (defun essgd-refresh ()
   "Refresh the latest plot."
   (interactive)
-  (setq-local essgd-plot-nums (essgd-get-plot-nums))
+  (setq essgd-plot-nums (essgd-get-plot-nums))
   (essgd-show-plot-n (with-current-buffer essgd-buffer
 		       essgd-cur-plot)))
 
@@ -227,6 +237,9 @@ Do nothing if N is zero."
   "r" #'essgd-refresh
   "p" #'essgd-prev-plot
   "n" #'essgd-next-plot
+  "c" #'essgd-clear-plots
+  "x" #'essgd-remove-plot-move-next
+  "<backspace>" #'essgd-remove-plot-move-previous
   "q" #'essgd-quit)
 
 (define-derived-mode essgd-mode
@@ -237,16 +250,17 @@ Do nothing if N is zero."
 (defun essgd-prev-plot ()
   "Go to previous (earlier) plot in *R* session."
   (interactive)
-  (if (equal essgd-cur-plot 1)
-      (message "Already at first plot")
-    (essgd-show-plot-n (1- essgd-cur-plot))))
+  (cond ((null essgd-cur-plot) (message "No plots"))
+	((equal essgd-cur-plot 1) (message "Already at first plot"))
+	(t  (essgd-show-plot-n (1- essgd-cur-plot)))))
 
 (defun essgd-next-plot ()
   "Go to next (later) plot in *R* session."
   (interactive)
-  (if (equal essgd-cur-plot (length essgd-plot-nums))
-      (message "Already at latest plot")
-    (essgd-show-plot-n (1+ essgd-cur-plot))))
+  (cond ((null essgd-cur-plot) (message "No plots"))
+	((equal essgd-cur-plot (length essgd-plot-nums))
+	 (message "Already at latest plot"))
+	(t  (essgd-show-plot-n (1+ essgd-cur-plot)))))
 
 (defun essgd-quit ()
   "Quit the current *essgd* device and close the device in R."
@@ -261,6 +275,67 @@ WIN is currently used to get the buffer *essgd*."
   (with-current-buffer (window-buffer win)
     (essgd-refresh)))
 
+
+;; Imagine we have plots a B c d (upper case = current plot)
+;; del-forward should result in a C d
+;; del-backward should result in A c d
+
+;; if we have a b C then del-forward  should result in a B
+;; if we have A b c then del-backward should result in B c
+
+(defun essgd-remove-plot-move-previous ()
+  "Delete the plot and move to the previous (earlier) plot."
+  (interactive)
+  (cond ((null essgd-cur-plot)
+	 (message "No plots"))
+	((equal essgd-cur-plot 1)
+	 (essgd-remove-plot 0))
+	(t
+	 (essgd-remove-plot -1))))
+
+(defun essgd-remove-plot-move-next ()
+  "Delete the plot and move to the next (later) plot."
+  (interactive)
+  (cond ((null essgd-cur-plot)
+	 (message "No plots"))
+	(t
+	 (essgd-remove-plot 0))))
+
+(defun essgd-remove-plot (offset)
+  "Remove the current plot and add OFFSET to current plot number.
+The httpgd interface always goes to show the newest plot, but I think
+deleting and moving through history is more useful.  Implementing this
+is non-trivial though.
+After deleting a plot, an event is sent to the websocket, with updated pid.
+So in theory, that code could handle which plot to show."
+  (if (< (length essgd-plot-nums) 2)
+      ;; only one (or zero) plots currently on server.
+      (essgd-clear-plots)
+    ;; else more than one plot, so need to be careful about which way to go.
+    (let
+	(cmd text)
+      (setq cmd (format "curl -s '%s/remove?index=%d&%s'"
+			essgd-url
+			(1- essgd-cur-plot)
+			essgd-token))
+      (setq essgd-deleting t
+	    essgd-cur-plot (+ offset essgd-cur-plot))
+      (essgd-debug (message cmd))
+      (setq text (shell-command-to-string cmd))
+      (essgd-debug (message text)))))
+
+(defun essgd-clear-plots ()
+  "Remove all plots from the session."
+  (interactive)
+  (let
+      (cmd text)
+    (setq cmd (format "curl -s '%s/clear?%s'" essgd-url essgd-token))
+    (essgd-debug (message cmd))
+    (setq text (shell-command-to-string cmd))
+    (essgd-debug (message text))
+    (setq essgd-cur-plot nil)
+    (remove-images 0 1)
+    (setq-local mode-line-position "0/0")))
 
 (provide 'essgd)
 ;;; essgd.el ends here
