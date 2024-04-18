@@ -71,26 +71,30 @@
 
 
 ;; Internal variables and not for the user:
-(defvar essgd-cur-plot nil
+(defvar-local essgd-cur-plot nil
   "Index (1-based) of the current plot being displayed.")
 
-(defvar essgd-cur-plot nil
-  "Index of the current plot being displayed.")
-
-(defvar essgd-plot-nums nil
+(defvar-local essgd-plot-nums nil
   "List of plot indexes (1-based) available on server.")
 
-(defvar essgd-token nil
+(defvar-local essgd-token nil
   "String containing the token to access plot server.")
 
-(defvar essgd-url nil
+(defvar-local essgd-url nil
   "String containing the URL to access plot server.")
 
-(defvar essgd-latest nil
+(defvar-local essgd-latest nil
   "Temporary file name used to store the SVG downloaded from plot server.")
 
-(defvar essgd-websocket nil
+(defvar-local essgd-websocket nil
   "Object pointing to the websocket (not needed?).")
+
+(defvar-local essgd-upid nil
+  "PID of the plotting session.
+Changes when something about plots has changed.")
+
+(defvar-local essgd-deleting nil
+  "Non-nil means we are currently deleting a plot.")
 
 (defmacro essgd-debug (&rest body)
   "Evaluate BODY if variable `essgd-debug' is non-nil.
