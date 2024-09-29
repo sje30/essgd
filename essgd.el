@@ -137,6 +137,7 @@ This allows us to respond automatically to new plots."
 ;; https://cran.r-project.org/web/packages/httpgd/vignettes/c01_httpgd-api.html
 ;; curl -s http://127.0.0.1:5900/plot?index=2&width=800&height=600 > /tmp/a.svg
 
+;;;###autoload
 (defun essgd-start ()
   "Start an *essgd* buffer to plot R output.
 Must be called from a buffer that is either an *R* process, or attached to one.
