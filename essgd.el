@@ -96,6 +96,9 @@ Changes when something about plots has changed.")
 (defvar-local essgd-deleting nil
   "Non-nil means we are currently deleting a plot.")
 
+(defvar essgd-prev-buffer nil
+  "The buffer used before switching to `*essgd*` buffer.")
+
 (defmacro essgd-debug (&rest body)
   "Evaluate BODY if variable `essgd-debug' is non-nil.
 This macro is essentially copied from the when macro."
@@ -241,7 +244,12 @@ Do nothing if N is zero."
   "c" #'essgd-clear-plots
   "x" #'essgd-remove-plot-move-next
   "<backspace>" #'essgd-remove-plot-move-previous
-  "q" #'essgd-quit)
+  "q" #'essgd-quit
+  "C-c C-a" #'essgd-toggle-plot-buffer
+  "C-c C-z" #'ess-switch-to-inferior-or-script-buffer)
+
+(keymap-set ess-r-mode-map "C-c C-a" 'essgd-toggle-plot-buffer)
+(keymap-set inferior-ess-r-mode-map "C-c C-a" 'essgd-toggle-plot-buffer)
 
 (define-derived-mode essgd-mode
   fundamental-mode
@@ -337,6 +345,35 @@ So in theory, that code could handle which plot to show."
     (setq essgd-cur-plot nil)
     (remove-images 0 1)
     (setq-local mode-line-position "0/0")))
+
+(defun essgd-toggle-plot-buffer ()
+  "Switch to `*essgd*` buffer, and back to the previous buffer.
+If already in the `*essgd*` buffer, return to the last buffer (either script
+or process). The last key used will temporarily toggle the buffer. Assuming
+that it is bound to C-c C-a, you can navigate back and forth between essgd
+and script buffer with C-c C-a C-a C-a ...."
+  (interactive)
+  (let* ((essgd-buf-name "*essgd*")
+         (essgd-buffer (get-buffer essgd-buf-name)))
+    (if essgd-buffer
+        ;; Switch to *essgd* buffer if it exists and we are not in it.
+        (if (not (eq (current-buffer) essgd-buffer))
+            (progn
+	      ;; Store the current buffer as the 'previous' one.
+	      (setq essgd-prev-buffer (current-buffer))
+	      (pop-to-buffer essgd-buf-name))
+          ;; If already in *essgd* buffer, switch back to the previous buffer.
+          (if (and essgd-prev-buffer (buffer-live-p essgd-prev-buffer))
+	      (pop-to-buffer essgd-prev-buffer)
+            (message "No previous buffer or *essgd* already the current buffer.")))
+      (message "No existing *essgd* buffer.")))
+  ;; Activate transient keymap to allow pressing the same key again
+  (when (called-interactively-p 'any)
+    (set-transient-map
+     (let ((map (make-sparse-keymap))
+           (key (vector last-command-event)))
+       (define-key map key #'essgd-toggle-plot-buffer)
+       map))))
 
 (provide 'essgd)
 ;;; essgd.el ends here
