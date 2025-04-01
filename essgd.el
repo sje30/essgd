@@ -28,12 +28,12 @@
 ;; Emacs buffer.
 ;;
 ;; Prerequisites
-;; 
+;;
 ;; R: You will need to install httpgd from CRAN.  Emacs: This code has
 ;; been tested on Emacs 29.2.  It requires a recent version of two
 ;; packages: ESS and websocket.  Both of these packages are available
 ;; from MELPA.
-;; 
+;;
 ;; Your version of Emacs must be compiled with native JSON support.  To check
 ;; this, check that the feature JSON is included in the variable
 ;; `system-configuration-features'.
@@ -46,7 +46,7 @@
 ;; You can navigate through the plot history using p, n keys.  Press
 ;; r to refresh the buffer if a plot doesn't appear correctly.  Press
 ;; q to quit the buffer and close the R device.
-;; 
+;;
 ;; Acknowledgements
 ;;
 ;; Thanks to Florian Rupprecht for help getting started with the httpgd()
@@ -58,16 +58,26 @@
 (require 'ess-inf)
 
 
-;; Variables that you might wish to change:
+;; User changeable variables:
 
-(defvar essgd-buffer "*essgd*"
-  "Name of the buffer to display R plots in.")
+(defgroup ess-essgd nil
+  "Display R plots within a buffer."
+  :group 'ess)
 
-(defvar essgd-debug nil
-  "Non-nil means print debugging information.")
+(defcustom essgd-buffer "*essgd*"
+  "Name of the buffer to display R plots in."
+  :group 'ess-essgd
+  :type 'string)
 
-(defvar essgd-start-text "httpgd::hgd(token=TRUE,bg='transparent')"
-  "R code required for starting a hgd() device in an *essgd* session.")
+(defcustom essgd-debug nil
+  "Non-nil means print debugging information."
+  :group 'ess-essgd
+  :type  'boolean)
+
+(defcustom essgd-start-text "httpgd::hgd(token=TRUE,bg='transparent')"
+  "R code required for starting a hgd() device in an *essgd* session."
+  :group 'ess-essgd
+  :type 'string)
 
 
 ;; Internal variables and not for the user:
@@ -159,7 +169,7 @@ The initial size of the plot is half the current window."
 
     ;; if minibuffer changes size, then we might get a dynamic resize!
     (setq-local resize-mini-windows nil)
-    
+
     (string-match "\\(http://[0-9.:]+\\)/live\\?token=\\(.+\\)" start-output)
     ;; TODO - check case when token is missing.
     ;; TODO - error check if URL ccannot be found.
@@ -171,7 +181,7 @@ The initial size of the plot is half the current window."
     (setq essgd-cur-plot
 	  (length essgd-plot-nums))
     (setq essgd-latest (make-temp-file "essgd" nil ".svg"))
-    
+
     (display-buffer buf)
     (setq-local window-size-change-functions '(essgd-window-size-change))
     (when (> essgd-cur-plot 0)
@@ -210,7 +220,7 @@ Do nothing if N is zero."
 	    (format
 	     "curl -s '%s/plot?index=%d&width=%d&height=%d&%s' > %s"
 	     essgd-url (1- n) wid ht essgd-token essgd-latest)))
-    
+
       (essgd-debug
        (message cmd1)
        (message "inside size %d x %d " wid ht))
