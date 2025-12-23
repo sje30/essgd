@@ -29,7 +29,7 @@ A prototype of this code, and example usage, is available at:
 <https://github.com/sje30/ess-unigd>
 
 Laurent Gatto has written a nice R package called 
-[plothistory](https://github.com/lgatto/plothistory).  This is not
+[plothistory](https://codeberg.org/lgatto/plothistory/).  This is not
 Emacs-specific, and in my testing, works well remotely via TRAMP.
 
 Thanks to Florian Rupprecht for his excellent
